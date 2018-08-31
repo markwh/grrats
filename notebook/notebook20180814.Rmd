@@ -1,0 +1,12 @@
+---
+title: "notebook20180814"
+author: "Mark Hagemann"
+date: "August 14, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+It's becoming clear that I need to make bam robust to missing data, as appear in droves in the Mississippi dataset.  
