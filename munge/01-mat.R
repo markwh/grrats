@@ -1,8 +1,20 @@
 # Munge matlab files
 
+
+# Widths ------------------------------------------------------------------
+
 missmat <- readMat("https://osu.box.com/shared/static/p590fahl5i03vhw75ljnlmmv40pklt40.mat")
 str(missmat)
 
+widthdf <- melt(missmat$Wgrid[[1]], na.rm = FALSE) %>% 
+  mutate(time = rep(as.vector(missmat$Wgrid[[2]]), 
+                    length(as.vector(missmat$Wgrid[[3]]))),
+         FD = rep(as.vector(missmat$Wgrid[[3]]),
+                  each = length(as.vector(missmat$Wgrid[[2]]))),
+         date = as.Date(time, origin = "0000-01-01"))
+
+widthdates <- unique(widthdf$date)
+# widthlocs <- unique(widthdf$)
 
 # Heights -----------------------------------------------------------------
 
@@ -10,12 +22,22 @@ str(missmat)
 terpmat <- readMat("https://osu.box.com/shared/static/anbvjbmczfkqb9gmuekcq7xa9zmdjo3s.mat")
 str(terpmat)
 
-terpdf <- melt(terpmat$TERP) %>% 
+terpdf0 <- melt(terpmat$TERP) 
+
+terpdf1 <- terpdf0 %>% 
   mutate(x = rep(as.vector(terpmat$x), each = length(terpmat$y)),
          date = rep(as.vector(terpmat$y), length(terpmat$x))) %>% 
-  transmute(H = value, x, date = as.Date(round(date), origin = "0000-01-01")) %>% #,
-            # loc = as.integer(as.factor(x)), 
-            # time = as.integer(as.factor(date))) 
+  transmute(H = value, x, date = as.Date(round(date), origin = "0000-01-01")) 
+cache("terpdf1")
+
+hdates <- unique(terpdf1$date)
+keepdates <- intersect(widthdates, hdates)
+
+
+terpdf2 <- terpdf1 %>%
+  filter(date %in% keepdates)
+
+terpdf3 <- terpdf2 %>% 
   group_by(date, x) %>% 
   summarize(H = mean(H)) %>% 
   group_by(date) %>% 
@@ -23,18 +45,14 @@ terpdf <- melt(terpmat$TERP) %>%
   mutate(S = c(diff(H), NA) / c(diff(x), NA)) %>% 
   ungroup()
 
-# hmat <- swot_untidy(terpdf)
 
-# Widths ------------------------------------------------------------------
+# Update widths based on terp data ----------------------------------------
 
-widthdf <- melt(missmat$Wgrid[[1]], na.rm = FALSE) %>% 
-  mutate(time = rep(as.vector(missmat$Wgrid[[2]]), 
-                    length(as.vector(missmat$Wgrid[[3]]))),
-         FD = rep(as.vector(missmat$Wgrid[[3]]),
-                  each = length(as.vector(missmat$Wgrid[[2]])))) %>% 
+wdf2 <- widthdf %>% 
   transmute(W = value, date = as.Date(round(time), origin = "0000-01-01"), 
             x = terpmat$x[FD])
 
+# hmat <- swot_untidy(terpdf)
 
 setdiff(terpdf$date, widthdf$date)
 intersect(terpdf$date, widthdf$date)
