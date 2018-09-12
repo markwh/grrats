@@ -8,7 +8,7 @@ munging: FALSE
 logging: FALSE
 logging_level: INFO
 load_libraries: TRUE
-libraries: dplyr, purrr, reshape2, tidyr, swotr, bamr, rstan, ggplot2, R.matlab
+libraries: dplyr, purrr, reshape2, tidyr, swotr, rstan, ggplot2, R.matlab, boxr
 as_factors: TRUE
 data_tables: FALSE
 attach_internal_libraries: FALSE
