@@ -3,7 +3,7 @@
 # box_search("grrats", type = "folder")
 
 cache_boxid <- 53075448928
-boxr::box_setwd(cache_boxid) # id of grrats folder
+# boxr::box_setwd(cache_boxid) # id of grrats folder
 
 # Overwrite default function behavior for boxr
 cache_push <- function(dir_id = cache_boxid, 

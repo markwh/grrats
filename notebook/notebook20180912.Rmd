@@ -1,0 +1,107 @@
+---
+title: "notebook20180912"
+author: "Mark Hagemann"
+date: "September 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's try running bamr on a subset of locations and times. These should be chosen so that maximum overlap is achieved. That is, choose rows and columns such that neither the row sums nor the column sums are below a certain number of data. 
+
+I did something similar in the Missouri project. 
+
+First I need a binary matrix of data existing. 
+
+```{r}
+mygt <- function(x, y) {
+  out <- x > y
+  out[is.na(out)] <- FALSE
+  out
+}
+mscase2 <- within(mscase, {
+  S[!mygt(S, 0)] <- NA
+})
+hasdata <- with(mscase2, !is.na(W) * !is.na(S) * !is.na(dA))
+```
+
+Next, I need to chunk it into locations that are reasonably nearby (mass conserved). Say, 50 km. 
+
+```{r}
+xdist <- apply(mscase$x, 1, min, na.rm = TRUE)
+
+testhd <- hasdata[1:50, ]
+
+colsums <- apply(testhd, 2, sum)
+rowsums <- apply(testhd, 1, sum)
+plot(colsums)
+plot(rowsums)
+
+testhd2 <- testhd[-1:-24, ]
+plot(apply(testhd2, 2, sum))
+testhd3 <- testhd2[, apply(testhd2, 2, sum) > 4]
+
+plot(apply(testhd3, 1, sum))
+plot(apply(testhd3, 2, sum))
+```
+
+Now get the indices that I've kept. 
+
+```{r}
+keptrows0 <- 1:nrow(testhd)
+keptcols0 <- 1:ncol(testhd)
+
+keptrows1 <- keptrows0[-1:-24]
+keptcols1 <- keptcols0[apply(testhd2, 2, sum) > 4]
+
+length(keptrows1)
+length(keptcols1)
+```
+
+This gives me a subsetted swotlist. 
+
+```{r}
+mscase_ss1 <- mscase2 %>% 
+  swot_sset(keeptimes = keptcols1, keeplocs = keptrows1)
+swot_plot(mscase_ss1)
+```
+
+```{r}
+hd4 <- with(mscase_ss1, !is.na(dA * S * W))
+
+source("../../Missouri/lib/ssetRows.R")
+foo <- maxOverlap2(hd4, nrows = 7) # This is the one I want. 
+# bar <- maxOverlap2(t(testhd3), nrows = 7) # This if I wanted instead to subset locations
+
+mscase_ss2 <- mscase_ss1 %>% 
+  swot_sset(keeplocs = foo)
+swot_plot(mscase_ss2)
+```
+
+Now I can try out bamr!
+
+```{r}
+bd_ss2 <- swot_bamdata(mscase_ss2, Qhat = 3000)
+bp_ss2 <- bam_priors(bd_ss2)
+
+be_ss2 <- bam_estimate(bd_ss2)
+```
+
+It works! (samples, anyway)
+
+```{r}
+bam_hydrograph(be_ss2) + scale_y_log10()
+```
+
+Proof of concept works!
+
+Next steps:
+
+- build out river segment creation
+- Create cases / bamdata objects for all segments
+    - "raw" case
+    - reach-aggregated (median)
+    - reach-aggregated (mean)
+
