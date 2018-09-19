@@ -1,0 +1,168 @@
+---
+title: "notebook20180918"
+author: "Mark Hagemann"
+date: "September 18, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+In this document I will develop the theory behind subsetting (in time and space) a large, sparse DAWG matrix such as SWOT is likely to produce in real life. Thus far McFLI algorithms have been applied to in-situ and simulated datasets that contain complete observations in time and space--that is there are no missing values for any location and time represented in the data matrix.
+
+This is an unlikely scenario for actual SWOT observations. The nature of SWOT overpasses means that different locations within a river (even a mass-conserved river segment) will not be observed on the same days. Even on the swath-scale, heterogeneities such as cloud cover may lead to missing data points in the observation matrix. 
+When I first developed BAM, I assumed complete observations, and for most of its life so far this is what it required. When I had encountered missing values in previous applications of BAM, my approach had been to subset entire rows or columns from the data matrix, thus obtaining complete observations. 
+
+I have recently updated the Stan model used by BAM to accommodate missing values--very simple in theory but surprisingly difficult to do in practice. But that's done. 
+
+Even though missing data are now supported, it may not be wise to use the entire data matrix, depending on how sparse it is. The number of parameters--and therefore the amount of sampling time--in BAM increases as a function of the number of times and locations in the data matrix, but the posterior certainty is degraded if the row or column corresponding to a given parameter contains many missing values. This suggests an optimal subsetting of times and/or locations in order to minimize sampling time while maximizing the number of observations per sampled parameter. 
+
+## Formal description of problem. 
+
+For a $m \times n$ binary matrix, in which  
+
+Declare threshold `nloc_max`, `nloc_min`. The former is the maximum number of 
+
+
+Inversion step: include all locations, only those times with at least `nloc_min` locations' data. 
+
+Estimation step: include all times and locations, estimate discharge using parameters obtained in inversion step.
+
+```{r}
+mygt <- function(x, y) {
+  out <- x > y
+  out[is.na(out)] <- FALSE
+  out
+}
+mscase2 <- within(mscase, {
+  S[!mygt(S, 0)] <- NA
+})
+hasdata <- with(mscase2, !is.na(W) * !is.na(S) * !is.na(dA))
+
+```
+
+Split into 50-km sections.
+
+```{r}
+alldists <- apply(mscase2$x, 1, min, na.rm = TRUE)
+
+alldists2 <- alldists - alldists[1]
+
+bindf <- data.frame(x = alldists, xadj = alldists2) %>% 
+  mutate(int = findInterval(xadj, vec = 0:ceiling(max(xadj) / 50000) * 50000),
+         ind = 1:nrow(.))
+
+bininds <- with(bindf, split(ind, f = int))
+
+subcaselist <- bininds %>% 
+  map(~swot_sset(mscase2, keeplocs = .))
+
+```
+
+Now to subset these to include only those times with a reasonable number of locations. 
+
+```{r}
+foo <- subcaselist[[10]]
+
+foohd <- with(foo, !is.na(W) * !is.na(S) * !is.na(dA))
+
+foonloc <- foohd %>% apply(2, sum)
+
+hist(foonloc)
+plot(ecdf(foonloc))
+sum(foonloc > 20)
+```
+
+Try 20 as a threshold. 
+
+```{r}
+swot_hasdata <- function(swotlist) {
+  mygt <- function(x, y) {
+    out <- x > y
+    out[is.na(out)] <- FALSE
+    out
+  }
+  swotlist$S[!mygt(swotlist$S, 0)] <- NA
+  
+  out <- with(swotlist,  !is.na(W) * !is.na(S) * !is.na(dA))
+  out
+}
+
+locthresh <- 20
+
+keeptimelist <- subcaselist %>% 
+  map(swot_hasdata) %>% 
+  map(~which(apply(., 2, sum) >= locthresh))
+ntimevec <- map_dbl(keeptimelist, ~length(unique(.)))
+
+keepsects <- which(ntimevec > 30) # Only keep sections with at least 30 data-rich times
+
+subcaselist2 <- map2(subcaselist[keepsects], keeptimelist[keepsects], 
+                     ~swot_sset(.x, keeptimes = .y))
+```
+
+Next: get Qhats using my new estimate_logQbar function.
+
+```{r}
+qhatlist <- map_dbl(subcaselist2, ~estimate_logQbar(.$W))
+```
+
+Make the bamdata objects. 
+
+```{r}
+library(bamr)
+bdlist <- map2(subcaselist2, qhatlist, 
+               ~swot_bamdata(swotlist = .x, Qhat = exp(.y), max_xs = 9999))
+bplist <- map(bdlist, ~bamr::bam_priors(., logQ_sd = 0.74))
+```
+
+```{r}
+case1 <- subcaselist2[[1]]
+bd1 <- swot_bamdata(swotlist = subcaselist2[[1]], Qhat = exp(qhatlist[[1]]), max_xs = 9999)
+
+est1 <- bam_estimate(bamdata = bdlist[[1]], bampriors = bplist[[1]], variant = "manning")
+bam_hydrograph(est1)
+
+summary(est1, pars = c("logn", "A0"))$summary
+stan_trace(est1, pars = "logn", inc_warmup = TRUE)
+```
+
+Hmmm, Manning's n isn't behaving. But don't worry about that right now. 
+
+```{r}
+ms_ests <- map2(bdlist, bplist, possibly(~bam_estimate(bamdata = .x, 
+                                                       bampriors = .y, 
+                                                       variant = "manning"),
+                                          otherwise = NA))
+```
+
+See how Manning's n estimates are distributed. 
+
+```{r}
+ms_nsmry <- map(ms_ests, ~summary(., pars = "logn")$summary) %>% 
+  map(possibly(~as.data.frame(.), otherwise = NA)) %>% 
+  na.omit() %>% 
+  bind_rows(.id = "case")
+
+ms_Asmry <- map(ms_ests, ~summary(., pars = "A0")$summary) %>% 
+  map(possibly(~as.data.frame(.), otherwise = NA)) %>% 
+  na.omit() %>% 
+  bind_rows(.id = "case") %>% 
+  mutate(loc = 1:nrow(.))
+
+ms_nsmry %>% glimpse() %>% 
+  ggplot(aes(x = case, y = `50%`)) +
+  geom_point()
+
+
+ms_Asmry %>% glimpse() %>% 
+  ggplot(aes(x = loc, y = `50%`)) +
+  geom_point() +
+  scale_y_log10()
+
+
+```
+
+Unclear why logn is so high! 

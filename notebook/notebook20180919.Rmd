@@ -1,0 +1,194 @@
+---
+title: "notebook20180919"
+author: "Mark Hagemann"
+date: "September 19, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Now I'd like to see an animation of widths. Heights as well.
+
+
+```{r}
+msdf %>% head()
+
+msdf %>% 
+  group_by(loc) %>% 
+  summarize(W = median(W, na.rm = TRUE), x = median(x, na.rm = TRUE)) %>% 
+  ggplot(aes(x = x, y = W)) + 
+  # geom_line()
+  geom_point()
+```
+
+Now heights.
+
+```{r}
+msdf %>% 
+  group_by(loc) %>% 
+  summarize(H = median(H, na.rm = TRUE), x = median(x, na.rm = TRUE)) %>% 
+  ggplot(aes(x = x, y = H)) +
+  geom_point() + 
+  geom_smooth()
+```
+
+
+### Reaches
+
+```{r}
+reachdf %>% 
+  # filter(n > 4) %>% 
+  group_by(reach) %>% 
+  summarize(H = median(H, na.rm = TRUE), x = median(x, na.rm = TRUE)) %>% 
+  ggplot(aes(x = x, y = H)) +
+  geom_point() + 
+  geom_smooth()
+
+# Slopes
+reachdf %>% 
+  # filter(n > 4) %>% 
+  group_by(reach) %>% 
+  summarize(S = median(S, na.rm = TRUE), x = median(x, na.rm = TRUE)) %>% 
+  ggplot(aes(x = x, y = S)) +
+  geom_point() + 
+  geom_smooth()
+
+```
+
+
+Make some cases.
+
+```{r}
+
+mygt <- function(x, y) {
+  out <- x > y
+  out[is.na(out)] <- FALSE
+  out
+}
+
+
+reachcase2 <- within(reachcase, {
+  S[!mygt(S, 0)] <- NA
+})
+hasdata <- with(mscase2, !is.na(W) * !is.na(S) * !is.na(dA))
+
+```
+
+Split into 100-km sections.
+
+```{r}
+alldists <- apply(reachcase2$x, 1, min, na.rm = TRUE)
+
+alldists2 <- alldists - alldists[1]
+
+bindf <- data.frame(x = alldists, xadj = alldists2) %>% 
+  mutate(int = findInterval(xadj, vec = 0:ceiling(max(xadj) / 100000) * 100000),
+         ind = 1:nrow(.))
+
+bininds <- with(bindf, split(ind, f = int))
+
+rchcaselist <- bininds %>% 
+  map(~swot_sset(reachcase2, keeplocs = .))
+```
+
+
+Now to subset these to include only those times with a reasonable number of locations. 
+
+```{r}
+foo <- rchcaselist[[10]]
+
+foohd <- with(foo, !is.na(W) * !is.na(S) * !is.na(dA))
+
+foonloc <- foohd %>% apply(2, sum)
+
+hist(foonloc)
+plot(ecdf(foonloc))
+sum(foonloc >= 6)
+```
+
+use 6 as a minimum number of locations. 
+
+```{r}
+
+locthresh <- 6
+
+keeptimelist <- rchcaselist %>% 
+  map(swot_hasdata) %>% 
+  map(~which(apply(., 2, sum) >= locthresh))
+ntimevec <- map_dbl(keeptimelist, ~length(unique(.)))
+
+keepsects <- which(ntimevec > 30) # Only keep sections with at least 30 data-rich times
+
+rchcaselist2 <- map2(rchcaselist[keepsects], keeptimelist[keepsects], 
+                     ~swot_sset(.x, keeptimes = .y))
+```
+
+```{r}
+rchcaselist2$`4` %>% swot_plot()
+```
+
+```{r}
+qhatlist_r <- map_dbl(rchcaselist2, ~estimate_logQbar(.$W))
+
+plot(qhatlist_r)
+```
+
+Make bamr objects
+
+```{r}
+library(bamr)
+bdlist_r <- map2(rchcaselist2, qhatlist_r, 
+               ~swot_bamdata(swotlist = .x, Qhat = exp(.y), max_xs = 9999))
+bplist_r <- map(bdlist_r, ~bamr::bam_priors(., logQ_sd = 0.74))
+```
+
+
+```{r}
+est1 <- bam_estimate(bamdata = bdlist_r[[1]], bampriors = bplist_r[[1]], 
+                     variant = "manning", 
+                     control = list(adapt_delta = 0.99))
+bam_hydrograph(est1)
+
+summary(est1, pars = c("logn", "A0"))$summary
+stan_trace(est1, pars = "logn", inc_warmup = TRUE)
+pripost_n(bampriors = bplist_r[[1]], stanfit = est1)
+```
+
+Now all sections.
+
+```{r}
+ms_ests_r <- map2(bdlist_r, bplist_r, 
+                  possibly(~bam_estimate(bamdata = .x, 
+                                         bampriors = .y, 
+                                         variant = "manning",
+                                         control = list(adapt_delta = 0.99)),
+                            otherwise = NA))
+```
+
+```{r}
+msr_nsmry <- map(ms_ests_r, ~summary(., pars = "logn")$summary) %>% 
+  map(possibly(~as.data.frame(.), otherwise = NA)) %>% 
+  na.omit() %>% 
+  bind_rows(.id = "case")
+
+msr_Asmry <- map(ms_ests_r, ~summary(., pars = "A0")$summary) %>% 
+  map(possibly(~as.data.frame(.), otherwise = NA)) %>% 
+  na.omit() %>% 
+  bind_rows(.id = "case") %>% 
+  mutate(loc = 1:nrow(.))
+
+msr_nsmry %>% glimpse() %>% 
+  ggplot(aes(x = case, y = `50%`)) +
+  geom_point()
+
+
+msr_Asmry %>% glimpse() %>% 
+  ggplot(aes(x = loc, y = `50%`)) +
+  geom_point() +
+  scale_y_log10()
+```
+
+This is good for now. 
+

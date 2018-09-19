@@ -23,3 +23,15 @@ cache_fetch <- function(dir_id = cache_boxid,
                   recursive = recursive, overwrite = overwrite, 
                   delete = delete)
 }
+
+#' A HydroSWOT-based estimator for mean(logQ) based on mean(logW)
+#' 
+#' Note: MSE (ocv) for this model is 0.551, meaning logQbar_sd should be 0.742. 
+#' But really it could be somewhat lower, since different locations' estimates
+#' are being aggregated. Their errors will be correlated an unknown but large 
+#' amount, so 0.742 is a safe, conservative number here. 
+estimate_logQbar <- function(Wobs) {
+  lwbar <- apply(log(Wobs), 1, mean, na.rm = TRUE)
+  logQbar <- -3.2184 + 1.7039 * lwbar
+  median(logQbar)
+}
