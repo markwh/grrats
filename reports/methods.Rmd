@@ -1,0 +1,58 @@
+---
+title: "Methods"
+author: "Mark Hagemann"
+date: "September 20, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Datasets
+
+#### Height data
+
+Slopes were determined using a first-order finite difference calculated with respect to the nearest upstream location for a given location and observation date. If this nearest location was greater than 10 km upstream
+
+#### Width data
+
+#### Joined data
+
+Height and width data were combined to produce a dataset comprising `r nlocs_j` locations and `r ndates_j` dates, with a total of `r nobstot_j` concurrent observations of height and width.
+
+### Reach averaging
+
+Since river geometry observations--particularly those of height--are noisy, it is common practice to aggregate node-scale data to reach averages. In the SWOT community, this commonly means averaging observations within a ~10-km fixed window. 
+
+Reach-averaged widths and heights were calculated from taking the median of these respective quantities within each 10 km window. Reach-averaged slopes were calculated as the dividend of reach-averaged $\Delta H$ and reach-averaged $\Delta x$. 
+
+
+#### Calculation of $\delta A$
+
+Partial cross-sectional area was determined for each 
+
+### Preprocessing
+
+### Determination of sections
+
+
+
+### Missing data
+
+Since the data comprise remote-sensed observations, they were not sampled uniformly in time and space. Any pair of locations may have been sampled at a different set of dates. This results in a data matrix with many missing observations. In addition, various problematic or unreliable observations were treated as missing. These included the following:
+
+- Reach-averaged observations comprising fewer than 5 nodes' data
+- Times and locations (reaches) with non-positive (looking upstream) slope
+- Times and nodes for which the nearest upstream location was greater than 5 km (thus giving a dubious finite-difference slope estimate)
+
+
+
+### Bayesian inference
+
+#### Priors
+
+
+
+#### Likelihood
+

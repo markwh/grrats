@@ -14,18 +14,32 @@ heightdf1 <- heightdf0 %>%
          date = rep(as.vector(heightmat$y), 
                     length(heightmat$x))) %>% 
   transmute(H = value, x, date = as.Date(round(date), origin = "0000-01-01")) 
+cache("heightdf1")
+
 
 # Only keep the dates that have width data (cuts data size by factor of ~5)
 hdates <- unique(heightdf1$date)
 keepdates <- intersect(unique(widthdf$date), hdates)
-
-
 heightdf2 <- heightdf1 %>%
   filter(date %in% keepdates)
 
+# If more than 1 height per day, take daily average height
 heightdf3 <- heightdf2 %>% 
   group_by(date, x) %>% 
-  summarize(H = mean(H)) 
+  summarize(H = mean(H)) # TODO: How many are getting averaged?
 
-heightdf <- heightdf3
+
+# Add slopes
+heightdf4 <- heightdf3 %>% 
+  group_by(date) %>% 
+  arrange(x) %>% 
+  mutate(dH = c(diff(H), NA),
+         dx = c(diff(x), NA),
+         S = dH / dx) %>% 
+  ungroup() %>% 
+  filter(dx < 10000) # Slope estimate unreliable if dx is too large
+
+heightdf <- heightdf4
 cache("heightdf")
+
+
