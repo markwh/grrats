@@ -11,11 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Datasets
 
+#### Width data
+
+Widths were measured at `r nlocs_w` locations at `r ndates_w` unique dates between `r mindate_w` and `r maxdate_w`, comprising `r nobstot_w` total width observations. 
+
 #### Height data
 
 Slopes were determined using a first-order finite difference calculated with respect to the nearest upstream location for a given location and observation date. If this nearest location was greater than 10 km upstream
-
-#### Width data
 
 #### Joined data
 
@@ -30,29 +32,43 @@ Reach-averaged widths and heights were calculated from taking the median of thes
 
 #### Calculation of $\delta A$
 
-Partial cross-sectional area was determined for each 
+Partial cross-sectional area ($\delta A_{it}$) was determined for each location $s$ and time $t$ by the following formula:
+
+$$
+\delta A_{it} = \sum_{t':W_{it'} \leq W_{it}} W_{it'} \Delta H_{it'}
+$$
+
+where $\Delta H{it}$ is the difference in water surface height relative to the next-smallest height at location $i$. 
 
 ### Preprocessing
 
 ### Determination of sections
 
-
+Absent information about lateral inflows or other structures violating the mass conservation assumption, reaches / nodes were grouped into mass-conserved river sections based on proximity. For node data, 
 
 ### Missing data
 
-Since the data comprise remote-sensed observations, they were not sampled uniformly in time and space. Any pair of locations may have been sampled at a different set of dates. This results in a data matrix with many missing observations. In addition, various problematic or unreliable observations were treated as missing. These included the following:
+Since the data comprise remote-sensed observations, they were not sampled uniformly in time and space. Any pair of locations may have been sampled at a different set of dates. This results in a data matrix (representing days as columns and locations as rows) with many missing observations. In addition, various problematic or unreliable observations were treated as missing. These included the following:
 
-- Reach-averaged observations comprising fewer than 5 nodes' data
-- Times and locations (reaches) with non-positive (looking upstream) slope
-- Times and nodes for which the nearest upstream location was greater than 5 km (thus giving a dubious finite-difference slope estimate)
-
+- Node-level problematic values
+    - Times for which the nearest upstream location was greater than 5 km (thus giving a dubious finite-difference slope estimate)
+    
+- Reach-level problematic values
+    - Reach-averaged observations comprising fewer than 5 nodes' data (after omitting problematic nodes)
+    - Reach-averaged observations with non-positive slope (looking upstream) 
 
 
 ### Bayesian inference
+
+
 
 #### Priors
 
 
 
 #### Likelihood
+
+
+
+
 

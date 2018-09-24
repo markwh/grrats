@@ -1,6 +1,18 @@
 
 # swotlist ----------------------------------------------------------------
 
+make_dawgmat <- function(swotdf, varname, timevar = "time", locvar= "loc") {
+  out <- swotdf %>% 
+    select(!!varname, !!timevar, !!locvar) %>% 
+    spread(key = !!timevar, value = !!varname) %>% 
+    select(-!!locvar) %>% 
+    as.matrix()
+}
+
+make_swotlist <- function(swotdf) {
+}
+
+
 wmat <- joindf %>% 
   select(W, time, loc) %>% 
   spread(key = time, value = W) %>% 

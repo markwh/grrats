@@ -1,0 +1,42 @@
+---
+title: "figs"
+author: "Mark Hagemann"
+date: "September 24, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+glimpse(joindf)
+
+meddf <- joindf %>% 
+  group_by(x, loc) %>% 
+  summarize(medW = median(W), medH = median(H), medS = median(S))
+
+meddf %>% 
+  ggplot(aes(x = x, y = medW)) + 
+  geom_line()
+
+# Reach averages
+meddf_r1 <- reachdf %>% 
+  filter(n >= 5, S > 0) %>% 
+  group_by(x, reach) %>% 
+  summarize(medW = median(W), medH = median(H), medS = median(S))
+
+meddf_r1 %>% 
+  ggplot(aes(x = x, y = medW)) + 
+  geom_line()
+
+meddf_r1 %>% 
+  ggplot(aes(x = x, y = medS)) + 
+  geom_line()
+
+meddf_r1 %>% 
+  ggplot(aes(x = x, y = medH)) + 
+  geom_line()
+
+```
+
