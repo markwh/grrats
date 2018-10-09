@@ -1,0 +1,21 @@
+---
+title: "GRRATS locations"
+author: "Mark Hagemann"
+date: "October 8, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Here's a map of locations. Zoom to see discrpancies. Click for info on individual locations.
+
+```{r}
+load("https://osu.box.com/shared/static/gxxb91lrh2iafv6f3u7zqx2j25zc5oi2.rdata")
+library(leaflet)
+library(dplyr)
+
+
+```
+

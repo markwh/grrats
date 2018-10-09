@@ -1,0 +1,15 @@
+---
+title: "data questions"
+author: "Mark Hagemann"
+date: "September 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Questions for data provider:
+
+1. What is specific format of dates, particularly in height data? I can work out that it is a count from "0000-01-01", but since it has trailing decimals I need some time zone reference so that I can match it up optimally with width dataset's time data, which does not have trailing decimals. I presume the trailing decimals have something to do with overpass time. Should width observations be regarded as daily averages? 
+

@@ -3,17 +3,31 @@
 # Heights -----------------------------------------------------------------
 # This section crashes on my chromebook--requires a respectable amount of memory and cpu.
 
-heightmat <- readMat("https://osu.box.com/shared/static/anbvjbmczfkqb9gmuekcq7xa9zmdjo3s.mat")
+# heightmat <- readMat("https://osu.box.com/shared/static/anbvjbmczfkqb9gmuekcq7xa9zmdjo3s.mat")
+heightmat <- readMat("data/TERPMississippi.mat")
+
 # str(heightmat)
+
+#' Looks like: 
+#' - TERP is height data (a matrix)
+#' - x is vector of distances along-river
+#' - y is vector of dates as numeric count since "0000-01-01"
+#'  But there are 8 different decimal appendages. Width data times are all integer.
+#'   
 
 heightdf0 <- melt(heightmat$TERP) 
 
 heightdf1 <- heightdf0 %>% 
   mutate(x = rep(as.vector(heightmat$x), 
                  each = length(heightmat$y)),
+         lat = rep(as.vector(heightmat$lat), 
+                   each = length(heightmat$y)),
+         lon = rep(as.vector(heightmat$lon),
+                   each = length(heightmat$y)),
          date = rep(as.vector(heightmat$y), 
                     length(heightmat$x))) %>% 
-  transmute(H = value, x, date = as.Date(round(date), origin = "0000-01-01")) 
+  transmute(H = value, x, lat, lon, 
+            date = as.Date(round(date), origin = "0000-01-01")) 
 cache("heightdf1")
 
 
@@ -25,8 +39,8 @@ heightdf2 <- heightdf1 %>%
 
 # If more than 1 height per day, take daily average height
 heightdf3 <- heightdf2 %>% 
-  group_by(date, x) %>% 
-  summarize(H = mean(H)) # TODO: How many are getting averaged?
+  group_by(date, x, lat, lon) %>% 
+  summarize(H = mean(H)) # TODO: How many are getting averaged? answer: 2723 out of 4.4M
 
 
 # Add slopes

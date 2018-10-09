@@ -1,0 +1,32 @@
+---
+title: "GRRATS locations"
+author: "Mark Hagemann"
+date: "October 8, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Here's a map of locations. Zoom to see discrpancies. Click for info on individual locations.
+
+```{r, message=FALSE, warning=FALSE}
+load(url("https://osu.box.com/shared/static/gxxb91lrh2iafv6f3u7zqx2j25zc5oi2.rdata"))
+library(leaflet)
+library(dplyr)
+
+pal <- function(var) {
+  out <- ifelse(var == "H", "red", "blue")
+}
+locdf %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(lng = ~lon, lat = ~lat, color = ~pal(var), 
+                   popup = ~sprintf("lat: %s<br/>lon: %s<br/>km:%s<br/>var:%s", 
+                                    lat, lon, x_km, var))
+```
+
+
+
+

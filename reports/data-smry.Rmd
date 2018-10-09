@@ -1,0 +1,92 @@
+---
+title: "data summary"
+author: "Mark Hagemann"
+date: "October 5, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Raw data and structure
+The raw data come from two files--one for width, "Mississippi_Widthgrid3.mat", and one for heights, "TERPMississippi.mat".
+
+```{r}
+# missmat <- readMat("data/Mississippi_Widthgrid3.mat")
+str(missmat$Wgrid, 1)
+
+# heightmat <- readMat("data/TERPMississippi.mat")
+str(heightmat, 1)
+```
+
+
+Within `Mississippi_widthgrid3.mat`, the width data are in the `Wgrid` struct, containing
+
+- `Wgrid`, a 1649 x 2740 matrix of with data
+- `T`, a 1649 x 1 column vector of times, given as days since the date "0000-01-01"
+- `FD`, a 1 x 2740 row vector of locations, in km from some unknown start point (downstream).
+- `X`, a row vector giving location longitude
+- `Y`, a row vector giving location latitude
+
+Witin `TERPMississippi.mat`, the data are given as
+
+- `TERP`, a 8414 x 2723 matrix of height data
+- `x`, a row vector of along-river distance in meters
+- `y`, a vector of dates dates (days since "0000-01-01")
+- `s`, a scalar denoting ???
+- `lat`, a row vector of latitudes
+- `lon`, a row vector of longitudes
+
+```{r}
+widthdf$FD %>% summary()
+
+heightmat$x %>% as.vector() %>% str()
+str(heightmat, 1)
+
+str(heightmat$x)
+str(widthdf)
+str(missmat)
+attr(missmat, "dimnames")
+attributes(missmat[[1]])
+```
+
+
+
+These I transform and join together into a km-scale (node-scale?) data.frame (tabular data structure) with columns
+
+- `date`
+- `x`, along-river distance (identical to TERPMississippi `x`)
+- `H`, height
+- `W`, width
+- `dH`, first-order finite-difference (in space) for `H`
+- `dx`, first-order finite-difference (in space) for `x`
+- `S`, slope = `dH / dx`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

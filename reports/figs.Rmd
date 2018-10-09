@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+load("../cache/joindf.RData")
+load("../cache/reachdf.RData")
 glimpse(joindf)
 
 meddf <- joindf %>% 

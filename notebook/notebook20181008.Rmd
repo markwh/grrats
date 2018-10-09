@@ -1,0 +1,322 @@
+---
+title: "notebook20181008"
+author: "Mark Hagemann"
+date: "October 8, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+How do I join locations in height and widht mississippi data?
+
+
+```{r}
+heightmat %>% str()
+missmat %>% str()
+```
+
+```{r}
+widthdf %>% str()
+heightdf %>% str()
+```
+
+I need to make a plot showing where and when width and height data are (not) missing. This should be done on as raw as possible of data. 
+
+First I need to ascertain location data for widths. Is `FD` really location?
+
+```{r}
+widthdf$FD %>% head()
+
+widthdf %>% 
+  sample_n(10000) %>% 
+  ggplot(aes(x = X, y = Y, color = FD)) + 
+  geom_point() + coord_quickmap()
+
+heightdf %>% 
+  sample_n(10000) %>% 
+  ggplot(aes(x = lon, y = lat, color = x)) + 
+  geom_point() + coord_quickmap()
+
+```
+
+It sure is! How does `widthdf$FD` match against `heightdf$x`? First I need to know whether I can join by lat and lon. 
+
+It appears that I can convert FD --> x by converting to meters (Better vice versa).
+
+```{r}
+widthlocs <- sort(unique(widthdf$FD))
+heightlocs <- sort(unique(heightdf$x / 1000))
+
+head(widthlocs)
+head(heightlocs)
+
+hist(widthlocs)
+hist(heightlocs)
+```
+
+Now an interactive map showing difference in locations. 
+
+```{r}
+wlocdf <- widthdf %>% 
+  transmute(x_km = FD, lat = Y, lon = X) %>% 
+  group_by(x_km, lat, lon) %>% 
+  summarize(n = n())
+
+hlocdf <- heightdf %>% 
+  transmute(x_km = x / 1000, lat, lon) %>% 
+  group_by(x_km, lat, lon) %>% 
+  summarize(n = n())
+
+locdf <- list(W = wlocdf, H = hlocdf) %>% 
+  bind_rows(.id = "var")
+```
+
+```{r}
+library(leaflet)
+
+pal <- function(var) {
+  out <- ifelse(var == "H", "red", "blue")
+}
+locdf %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(lng = ~lon, lat = ~lat, color = ~pal(var), 
+                   popup = ~sprintf("lat: %s<br/>lon: %s<br/>km:%s<br/>var:%s", 
+                                    lat, lon, x_km, var))
+```
+
+
+
+## Updated data from Steve
+
+```{r}
+width0 <- readMat("../data/MississippidailywidthGrid.mat")
+width1 <- width0$Wpackage %>% 
+  setNames(attr(., "dimnames")[[1]])
+
+curvenames <- dimnames(width1$Curves)[[1]]
+curves <- setNames(as.data.frame(t(width1$Curves[, 1, ])), curvenames)
+
+width2 <- melt(width1$w, na.rm = FALSE) %>% 
+  mutate(lat = rep(as.vector(width1$lat), nrow(width1$w)),
+         lon = rep(as.vector(width1$lon), nrow(width1$w)))
+
+height1 <- width1$Hdexes %>% 
+  setNames(attr(., "dimnames")[[1]])
+str(height1, 1)
+str(height1$Tsat, 1)
+
+height2 <- melt(height1$H) %>% 
+  mutate(time = rep(as.vector(height1$T), 
+                    length(as.vector(height1$X))),
+         lat = rep(as.vector(height1$lat), 
+                   length(as.vector(height1$T))),
+         lon = rep(as.vector(height1$lon), 
+                   length(as.vector(height1$T))),
+         X = rep(as.vector(height1$X), 
+                 length(as.vector(height1$T))),
+         W = rep(as.vector(height1$W), 
+                 length(as.vector(height1$T))))
+```
+
+Now look at the locations. Judging by dimensions, it looks like the same dates are represented--just locations differ. 
+
+```{r}
+wlocs <- width2 %>% 
+  group_by(lat, lon) %>% 
+  summarize(n = n())
+
+hlocs <- height2 %>% 
+  select(lat, lon, X) %>% 
+  group_by(lat, lon, X) %>% 
+  summarize(n = n())
+
+wlocs$X <- NA_real_
+locdf <- list(W = wlocs, H = hlocs) %>% 
+  bind_rows(.id = "var")
+
+
+locdf %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(lng = ~lon, lat = ~lat, color = ~ifelse(var == "W", "red", "blue"),
+                   popup = ~sprintf("lat: %s<br/>lon: %s<br/>km:%s<br/>var:%s", 
+                                    lat, lon, X, var))
+
+# No height data downstream of a certain point near the mouth. Omit these:
+# lat < 30, lon > -90.28
+
+height3 <- height2 %>% 
+  filter(!(lat < 30 & lon > -90.28))
+```
+
+Now select the in-common locations. 
+
+```{r}
+wlocs2 <- wlocs %>% 
+  ungroup() %>% 
+  mutate(lat = round(lat, digits = 4), lon = round(lon, digits = 4),
+         locstr = paste(lat, lon, sep = ";")) %>% 
+  select(-X)
+hlocs2 <- hlocs %>%
+  ungroup() %>% 
+  mutate(lat = round(lat, digits = 4), lon = round(lon, digits = 4),
+         locstr = paste(lat, lon, sep = ";"))
+
+commonlocs <- inner_join(wlocs2, hlocs2, by = c("lat", "lon", "locstr"))
+
+wlocs2 %>% 
+  filter(!(locstr %in% commonlocs$locstr)) %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(lng = ~lon, lat = ~lat)
+```
+
+Filter data to only these locations.
+
+```{r}
+width3 <- width2 %>% 
+  mutate(locstr = paste(round(lat, digits = 4), lon = round(lon, digits = 4),
+                        sep = ";")) %>% 
+  filter(locstr %in% commonlocs$locstr)
+
+height3 <- height2 %>% 
+  mutate(locstr = paste(round(lat, digits = 4), lon = round(lon, digits = 4),
+                        sep = ";")) %>% 
+  filter(locstr %in% commonlocs$locstr)
+  
+```
+
+Some locations still don't overlap perfectly, but I can roll with that. 
+
+Somehow this isn't resulting in W, H datasets with the same dimensions, even though subsetting to in-common locations should--same times are represented in original data structures. I'll need to loop back and subset before I melt.
+
+```{r}
+wlocs_orig <- paste(round(width1$lat, digits = 4), round(width1$lon, digits = 4), sep = ";")
+keepinds_w <- wlocs_orig %in% commonlocs$locstr
+
+hlocs_orig <- paste(round(height1$lat, digits = 4), round(height1$lon, digits = 4), sep = ";")
+keepinds_h <- hlocs_orig %in% commonlocs$locstr
+```
+
+Now use that to subset and retransform.
+
+```{r}
+str(width4, 1)
+width4 <- within(width1, {
+  w = w[, keepinds_w]
+  lat = lat[1, keepinds_w]
+  lon = lon[1, keepinds_w]
+})
+height4 <- within(height1, {
+  H = H[, keepinds_h]
+  lat = lat[1, keepinds_h]
+  lon = lon[1, keepinds_h]
+  X = X[1, keepinds_h]
+})
+
+
+width5 <- melt(width4$w, na.rm = FALSE) %>% 
+  mutate(lat = rep(as.vector(width4$lat), nrow(width4$w)),
+         lon = rep(as.vector(width4$lon), nrow(width4$w)))
+
+height5 <- melt(height4$H, na.rm = FALSE) %>% 
+  mutate(time = rep(as.vector(height4$T), 
+                    length(as.vector(height4$X))),
+         lat = rep(as.vector(height4$lat), 
+                   length(as.vector(height4$T))),
+         lon = rep(as.vector(height4$lon), 
+                   length(as.vector(height4$T))),
+         X = rep(as.vector(height4$X), 
+                 length(as.vector(height4$T))))
+```
+
+Latest snag: a bunch of heights have the same lat/lon, but different X.  
+
+
+
+```{r}
+commonlocs[c(2000:2030, 2080:2110, 2160:2190, 2200:2230), ] %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(popup = ~paste(X))
+    
+```
+
+Sho 'nuff. Two choices: 1. omit these locations; 2. trust the X. Also possible these are problematic lake locations, so in that case I should omit. 
+
+```{r}
+commonlocs2 <- commonlocs %>% 
+  group_by(lat, lon, locstr) %>% 
+  summarize(n = n(), X = X[1]) %>% 
+  ungroup() %>% 
+  filter(n == 1) %>% 
+  select(-n)
+
+wlocs_orig2 <- paste(round(width1$lat, digits = 4), round(width1$lon, digits = 4), sep = ";")
+keepinds_w2 <- wlocs_orig2 %in% commonlocs2$locstr
+
+hlocs_orig2 <- paste(round(height1$lat, digits = 4), round(height1$lon, digits = 4), sep = ";")
+keepinds_h2 <- hlocs_orig2 %in% commonlocs2$locstr
+```
+
+One more go at this. 
+
+```{r}
+
+width6 <- within(width1, {
+  w = w[, keepinds_w2]
+  lat = lat[1, keepinds_w2]
+  lon = lon[1, keepinds_w2]
+})
+height6 <- within(height1, {
+  H = H[, keepinds_h2]
+  lat = lat[1, keepinds_h2]
+  lon = lon[1, keepinds_h2]
+  X = X[1, keepinds_h2]
+})
+
+
+width7 <- melt(width6$w, na.rm = FALSE) %>% 
+  mutate(lat = rep(as.vector(width6$lat), nrow(width6$w)),
+         lon = rep(as.vector(width6$lon), nrow(width6$w)))
+
+height7 <- melt(height6$H, na.rm = FALSE) %>% 
+  mutate(time = rep(as.vector(height6$T), 
+                    length(as.vector(height6$X))),
+         lat = rep(as.vector(height6$lat), 
+                   length(as.vector(height6$T))),
+         lon = rep(as.vector(height6$lon), 
+                   length(as.vector(height6$T))),
+         X = rep(as.vector(height6$X), 
+                 length(as.vector(height6$T))))
+
+glimpse(width7)
+```
+
+BOOYAH! Now clean it up for a munge script. Main points are (working backward):
+
+- width7 <--transform-- width6 <--subset-- width1 + keepinds_w2
+    - width1 <--subset,-set-names-- width0 <--(read in)
+    - keepinds_w2 <--contained-in-- wlocs_orig2 + commonlocs2$locstr
+        - wlocs_orig2 <--paste-columns-- width1
+        - commonlocs2 <--filter-lakes-- commonlocs <--inner-join-- wlocs2 + hlocs2
+            - wlocs2 <--round-latlon-- wlocs <--unique-locs-- width2 <--tabulate-- width1
+            - hlocs2 <--round-latlon-- hlocs <--unique-locs-- height2 <--tabulate-- height1 <--subset-- width1
+- height7 <--transform-- height6 <--subset-- height1 + keepinds_h2
+    - height1 <--subset,-set-names-- width1
+    - keepinds_h2 <--contained-in--hlocs_orig2 + commonlocs2$locstr
+        - hlocs_orig2 <-- paste-columns-- height1
+
+
+OK, now it's in a script. Next make that fig I've had in mind for a while now:
+
+```{r}
+obsdf %>% 
+  filter(timeind == 1) %>% 
+  ggplot(aes(x = x_km, y = H)) + 
+  geom_line()
+```
+

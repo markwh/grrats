@@ -4,52 +4,56 @@
 make_dawgmat <- function(swotdf, varname, timevar = "time", locvar= "loc") {
   out <- swotdf %>% 
     select(!!varname, !!timevar, !!locvar) %>% 
+    
     spread(key = !!timevar, value = !!varname) %>% 
+    mutate(value = as.numeric(value)) %>% # Gets around date formatting issue
     select(-!!locvar) %>% 
     as.matrix()
+  out
 }
 
-make_swotlist <- function(swotdf) {
+make_swotlist <- function(swotdf, pos_slope = TRUE) {
+  out <- list(
+    W = make_dawgmat(swotdf, "W"),
+    S = make_dawgmat(swotdf, "S"),
+    H = make_dawgmat(swotdf, "H"),
+    x = make_dawgmat(swotdf, "x"),
+    date = make_dawgmat(swotdf, "date")
+  )
+  
+  # Remove non-positive slopes
+  if (pos_slope) { 
+    out$S[is.na(out$S)] <- 0
+    out$S[out$S <= 0] <- NA
+  }
+  
+  out$dA <- calcdA_mat(w = out$W, h = out$H, zero = "minimum")
+  out
 }
 
 
-wmat <- joindf %>% 
-  select(W, time, loc) %>% 
-  spread(key = time, value = W) %>% 
-  select(-loc) %>% 
-  as.matrix()
+# Node-level swotlist -----------------------------------------------------
 
-smat <- joindf %>% 
-  select(S, time, loc) %>% 
-  spread(key = time, value = S) %>% 
-  select(-loc) %>% 
-  as.matrix()
-
-hmat <- joindf %>% 
-  select(H, time, loc) %>% 
-  spread(key = time, value = H) %>% 
-  select(-loc) %>% 
-  as.matrix()
-
-xmat <- joindf %>% 
-  select(x, time, loc) %>% 
-  spread(key = time, value = x) %>% 
-  select(-loc) %>% 
-  as.matrix()
-
-datemat <- joindf %>% 
-  transmute(date = as.numeric(date), time, loc) %>% 
-  spread(key = time, value = date) %>% 
-  select(-loc) %>% 
-  as.matrix()
-
-dAmat <- calcdA_mat(wmat, hmat, "median")
-
-
-mscase <- list(W = wmat, S = smat, H = hmat, dA = dAmat, x = xmat, date = datemat)
+mscase <- make_swotlist(joindf)
 
 msdf <- mscase %>% 
   swot_tidy()
 
 cache("mscase")
 cache("msdf")
+
+# Reach-level swotlists ---------------------------------------------------
+
+nmin <- 5 # Minimum number of nodes to have aggregated over
+reachcase <- reachdf %>% 
+  filter(n >= nmin) %>% 
+  mutate(loc = reach) %>% 
+  make_swotlist()
+
+reachcase_mean <- reachdf_mean %>% 
+  filter(n >= nmin) %>% 
+  mutate(loc = reach) %>% 
+  make_swotlist()
+
+cache("reachcase")
+cache("reachcase_mean")

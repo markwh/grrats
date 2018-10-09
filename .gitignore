@@ -6,3 +6,6 @@ data/*
 graphs/*
 cache/*
 ~/.boxr-oauth
+*.png
+*.pdf
+*.html
