@@ -1,0 +1,82 @@
+---
+title: "notebook20181010"
+author: "Mark Hagemann"
+date: "October 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Picking up where I left off yesterday. 
+
+- I've already recreated the swotlists
+- Still need to make "cases"
+- Then graphical summaries
+    - What I mean about imputation--constant widths
+    - negative slopes--flat reaches
+    - same-latlon, different x_km
+
+
+Make a raster of missing (including non-positive-slope) data
+
+```{r}
+dim(mscase$S)
+
+msdf %>% glimpse() %>% 
+  ggplot(aes(x = time, y = loc, fill = is.na(S))) + 
+  geom_raster()
+ggsave("../graphs/badslope.png", width = 8, height = 6, units = "in", dpi = 200)
+```
+
+That's a really funky plot. How to interpret? How about a regular slope plot? 
+
+```{r}
+fromcache("joindf")
+sdf <- joindf[c("timeind", "loc", "S", "dx")]
+sdf <- sdf[sdf$dx == 1000]
+rm(joindf); gc()
+ 
+ggplot(sdf, aes(x = timeind, y = loc, fill = S)) + 
+  geom_raster()
+  
+ggsave("../graphs/slopeplot.png", width = 8, height = 6, units = "in", dpi = 200)
+```
+
+```{r}
+wdf <- joindf[c("timeind", "loc", "W")]
+rm(joindf); gc()
+ 
+ggplot(wdf, aes(x = timeind, y = loc, fill = log(W))) + 
+  geom_raster()
+  
+ggsave("../graphs/widthplot.png", width = 8, height = 6, units = "in", dpi = 200)
+```
+
+Need to do some timeseries instead
+
+```{r}
+# fromcache("mscase")
+randloc <- sample(1:(nrow(mscase$W - 1)), 1)
+ntimes <- 8413 # Max is 8413.
+randtstart <- sample(1:(ncol(mscase$W) - (ntimes + 1)), 1)
+# 
+# dev.new()
+par("mfrow" = c(1, 2))
+plot(mscase$W[randloc, randtstart + 0:ntimes], type = "l", xlab = "time", ylab = "width")
+plot(mscase$H[randloc, randtstart + 0:ntimes], type = "l", xlab = "time", ylab = "height")
+lines(mscase$H[randloc + 1, randtstart + 0:ntimes], col = "red")
+
+```
+
+
+Clearly these are interpolated. Flat interpolation for width; linear interpolation for height. I think this is problematic. (Why?)
+
+- No way to know how far from the nearest measurement
+- Slope is a finite difference. Possible (though no evidence so far) that an interpolated 
+- Hydrologic variation takes place at finer resolution than temporal sampling present here. 
+- dA calculation requires simultaneous width and height measurement. 
+- Almost by definition, interpolated points can't add any information, and would overestimate the confidence of our estimates. 
+
+

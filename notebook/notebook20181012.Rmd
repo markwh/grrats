@@ -1,0 +1,65 @@
+---
+title: "notebook20181012"
+author: "Mark Hagemann"
+date: "October 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Now I'm interested in interpolation behavior of widths. Assume that non-flat width locations represent real measured variations. What is sd(log(W))?
+
+```{r}
+fromcache("msdf")
+```
+
+```{r}
+glimpse(msdf)
+
+mssmry <- msdf %>% 
+  group_by(loc) %>% 
+  summarize(sdlogW = sd(log(W), na.rm = TRUE))
+
+glimpse(mssmry)
+
+summary(mssmry$sdlogW[mssmry$sdlogW > 0]) m
+hist(mssmry$sdlogW[mssmry$sdlogW > 0])
+sum(mssmry$sdlogW > 0)
+sum(mssmry$sdlogW > 0) / nrow(mssmry)
+
+```
+
+But are these just mostly flat with a few measured widths?
+
+```{r}
+# hasvar <- mssmry %>% 
+#   filter(sdlogW > 0)
+
+thisrow <- hasvar[sample(1:nrow(hasvar), 1), ] %>% as.data.frame()
+thisloc <- unname(thisrow[1, 1])
+thissd <- unname(thisrow[1, 2])
+
+msdf %>% 
+  filter(loc == thisloc) %>% 
+  glimpse() %>% 
+  plot(W ~ time, ., type = "l", 
+       main = paste(thisloc, round(thissd, digits = 3), sep = " : "))
+```
+
+
+Height profiles now.
+
+```{r}
+thistime <- sample(msdf$time, 1)
+# thistime <- 2812 
+thisdf <- msdf %>% 
+  filter(time == thistime) %>% 
+  arrange(x) %>% 
+  mutate(dH = c(diff(H), NA))
+plot(H ~ x, type = "l", data = thisdf[900:1000, ])
+points(H ~ x, data = thisdf[thisdf$dH < 0, ], pch = "|", col = "red")
+
+```
+

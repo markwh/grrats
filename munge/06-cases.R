@@ -5,7 +5,6 @@ reldists <- alldists - alldists[1]
 
 
 seglen_node <- 50000 # size of mass-conserved river segments for node data (meters)
-seglen_reach <- 100000 # Same, for reach data
 
 bindf <- data.frame(x = alldists, xadj = reldists) %>% 
   mutate(int = findInterval(xadj, 
@@ -18,6 +17,7 @@ nodecases <- bininds %>%
 
 
 # Reach data --------------------------------------------------------------
+seglen_reach <- 100000 # Same, for reach data
 
 alldists_r <- apply(reachcase$x, 1, min, na.rm = TRUE)
 reldists_r <- alldists_r - alldists_r[1]

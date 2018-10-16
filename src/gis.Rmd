@@ -1,0 +1,107 @@
+---
+title: "GIS"
+author: "Mark Hagemann"
+date: "October 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Herein I join lat-lon from Steve's grrats to the SWOT a priori database to get drainage areas.
+
+```{r}
+library(sf)
+
+fromcache("joindf")
+
+locs <- joindf %>% 
+  group_by(loc, lat, lon, x_m) %>% 
+  summarize(n = n()) %>% 
+  ungroup()
+locs_sp <- st_as_sf(locs, coords = c("lon", "lat"))
+
+
+st_write(locs_sp, "../data/joindf_locs.shp", update = TRUE)
+```
+
+...After some external gis work...
+
+```{r}
+rchs_sp <- st_read("../data/apriori_joindf_reaches.shp")
+
+rchs_sp %>% 
+  glimpse() %>% 
+  ggplot(aes(color = log10(flow_acc))) +
+  geom_sf()
+
+# locs joined to a priori info
+locs_ap_sp <- st_read("../data/locs_ap_join.shp")
+
+glimpse(locs_ap_sp)
+
+locs_ap <- as.data.frame(locs_ap_sp)
+locs_ap$geometry <- NULL
+
+```
+
+Plot area vs x.
+
+```{r}
+plot(flow_acc ~ x_m, locs_ap, log = "y")
+plot(flow_acc ~ x_m, locs_ap)
+plot(QWBM ~ x_m, locs_ap, log = "y")
+plot(Wmean ~ x_m, locs_ap, log = "y")
+```
+
+First set of breaks are approximately 420000, 800000, 900000, 1600000, 1800000
+
+```{r}
+plot(flow_acc ~ x_m, locs_ap[locs_ap$x_m > 1880000, ], log = "y")
+```
+
+Really only worth using 1 more: ~1880000 - ~2110000.
+
+Now pinpoint these. Use something interactive?
+
+```{r}
+library(plotly)
+
+plot(flow_acc ~ x_m, locs_ap[locs_ap$x_m > 1880000, ], log = "y")
+gg1 <- locs_ap %>% 
+  ggplot(aes(x = x_m, y = flow_acc)) + 
+  geom_point()
+ggplotly(gg1)
+```
+
+Bounds:
+
+- 105268.6, 429268.6
+- 430268.6, 887268.6
+- 926268.6, 1506268.6
+- 1628268.6, 1855268.6
+- 1897268.6, 2132268.6
+
+```{r}
+
+breaks <- c(105268.6, 429268.6, 430268.6, 887268.6, 926268.6, 
+            1506268.6, 1628268.6, 1855268.6, 1897268.6, 2132268.6)
+locs_cut <- locs %>% 
+  mutate(x_cut = cut(x_m, breaks = breaks),
+         segment = as.numeric(x_cut)) %>% 
+  filter(segment %% 2 == 1) %>% 
+  select(-lat, -lon, -n) %>% glimpse()
+
+levels(locs_cut$x_cut)
+summary(locs_cut$x_cut)
+plot(locs_cut$x_m)
+```
+
+Now a final object containing drainage area as well as the river segment to which each location belongs. 
+
+```{r}
+locs_final <- inner_join(locs_ap, locs_cut, by = c("x_m", "loc"))
+glimpse(locs_final)
+```
+

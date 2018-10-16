@@ -1,12 +1,11 @@
 
 # swotlist ----------------------------------------------------------------
 
-make_dawgmat <- function(swotdf, varname, timevar = "time", locvar= "loc") {
+make_dawgmat <- function(swotdf, varname, timevar = "timeind", locvar= "loc") {
   out <- swotdf %>% 
-    select(!!varname, !!timevar, !!locvar) %>% 
-    
-    spread(key = !!timevar, value = !!varname) %>% 
-    mutate(value = as.numeric(value)) %>% # Gets around date formatting issue
+    mutate(value = as.numeric(.data[[varname]])) %>% # Gets around date formatting issue    
+    select(value, !!timevar, !!locvar) %>% 
+    spread(key = !!timevar, value = value) %>% 
     select(-!!locvar) %>% 
     as.matrix()
   out
@@ -17,7 +16,7 @@ make_swotlist <- function(swotdf, pos_slope = TRUE) {
     W = make_dawgmat(swotdf, "W"),
     S = make_dawgmat(swotdf, "S"),
     H = make_dawgmat(swotdf, "H"),
-    x = make_dawgmat(swotdf, "x"),
+    x = make_dawgmat(swotdf, "x_m"),
     date = make_dawgmat(swotdf, "date")
   )
   

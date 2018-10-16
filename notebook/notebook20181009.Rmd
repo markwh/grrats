@@ -1,0 +1,18 @@
+---
+title: "notebook20181009"
+author: "Mark Hagemann"
+date: "October 9, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Some thoughts before I call it a day with the data processing. 
+
+- A cursory look at the final cases shows a lot of constant-width locations. Is this an imputation?
+- Lots of negative slopes. 46% in median-aggregated reaches; 22% in mean-aggregated reaches. 
+- New dataset has far fewer missing values, hence it is difficult to say where to subset, if at all. This results in cases with >8000 times. May take quite a while to run through BAM. Smart thing might be to sample every handful of days so as to avoid major temporal autocorrelation. 
+
+Revamping of munging is mostly complete, but needs some final work in later files (swotlist, cases), esp. node-level *if* I want to keep that.  

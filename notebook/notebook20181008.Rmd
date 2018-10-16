@@ -316,7 +316,12 @@ OK, now it's in a script. Next make that fig I've had in mind for a while now:
 ```{r}
 obsdf %>% 
   filter(timeind == 1) %>% 
-  ggplot(aes(x = x_km, y = H)) + 
+  ggplot(aes(x = x_m, y = H)) + 
+  geom_line()
+
+obsdf %>% 
+  filter(timeind == 1) %>% 
+  ggplot(aes(x = x_m, y = W)) + 
   geom_line()
 ```
 
