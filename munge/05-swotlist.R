@@ -46,13 +46,15 @@ cache("msdf")
 nmin <- 5 # Minimum number of nodes to have aggregated over
 reachcase <- reachdf %>% 
   filter(n >= nmin) %>% 
-  mutate(loc = reach) %>% 
   make_swotlist()
 
 reachcase_mean <- reachdf_mean %>% 
   filter(n >= nmin) %>% 
-  mutate(loc = reach) %>% 
   make_swotlist()
 
 cache("reachcase")
 cache("reachcase_mean")
+
+
+
+

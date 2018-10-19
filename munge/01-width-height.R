@@ -2,6 +2,7 @@
 
 
 # New data version (as of 10/8/2018)
+# As of 10/17/2018: Indicates river segments from gis.Rmd 
 
 width0 <- readMat("data/MississippidailywidthGrid.mat")
 width1 <- width0$Wpackage %>% 
@@ -96,19 +97,18 @@ height5 <- height4 %>%
          S = dH / dx) %>% 
   ungroup()
 
+# Split into river segments based on gis.Rmd.
+# Note that *even* intervals will be the good ones (inside the bounds of goodness)
+breaks <- c(0, 105268.6, 429268.6, 430268.6, 887268.6, 926268.6, 
+            1506268.6, 1628268.6, 1855268.6, 1897268.6, 2132268.6, 1e10)
+height6 <- height5 %>% 
+  mutate(segment = findInterval(x_m, breaks))
 
 # Final products and cache
 widthdf <- width4
-heightdf <- height5
+heightdf <- height6
 
-joindf <- heightdf %>% 
-  mutate(W = widthdf$W,
-         loc = indicize(x_m))
 
 cache("widthdf")
 cache("heightdf")
-cache("joindf")
-
-
-
 

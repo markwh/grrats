@@ -105,3 +105,14 @@ locs_final <- inner_join(locs_ap, locs_cut, by = c("x_m", "loc"))
 glimpse(locs_final)
 ```
 
+Make and save a data.frame to join to location info in munge. 
+
+```{r}
+locs_ap <- st_read("../data/gis/locs_ap_join.shp") %>% 
+  as.data.frame() %>% 
+  select(-loc, -n, -geometry)
+```
+
+
+
+

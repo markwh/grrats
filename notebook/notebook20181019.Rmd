@@ -1,0 +1,66 @@
+---
+title: "notebook20181019"
+author: "Mark Hagemann"
+date: "October 19, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Now that I have again arrived at a viable munge workflow, I should make some plots for the different cases to be run on BAM. 
+
+```{r}
+reachcases2$`0201` %>% 
+  swot_plot()
+
+reachcases2$`0201` %>% 
+  swot_plot(vars = c("S", "W")) + 
+  scale_y_log10()
+```
+
+```{r}
+reachplots <- reachcases2 %>% 
+  map(~swot_plot(.))
+
+for (i in 1:length(reachplots)) {
+  namei <- names(reachplots)[i]
+  
+  ggsave(reachplots[[i]], filename = sprintf("../graphs/swotplots/reach_%s.png", namei))
+  print(i)
+}
+
+map()
+
+```
+
+
+
+Replicate the raster plot of slopes I made a couple weks ago. 
+
+```{r}
+msdf %>% glimpse() %>% 
+  ggplot(aes(x = time, y = loc, fill = is.na(S))) + 
+  geom_raster()
+
+
+
+```
+
+
+```{r}
+reachcase %>% 
+  swot_tidy() %>% 
+  glimpse() %>% 
+  ggplot(aes(x = time, y = loc, fill = is.na(S))) + 
+  geom_raster()
+
+reachcase_mean %>% 
+  swot_tidy() %>% 
+  glimpse() %>% 
+  ggplot(aes(x = time, y = loc, fill = is.na(S))) + 
+  geom_raster()
+
+```
+
