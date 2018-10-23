@@ -29,7 +29,7 @@ st_write(locs_sp, "../data/joindf_locs.shp", update = TRUE)
 ...After some external gis work...
 
 ```{r}
-rchs_sp <- st_read("../data/apriori_joindf_reaches.shp")
+rchs_sp <- st_read("../data/gis/apriori_joindf_reaches.shp")
 
 rchs_sp %>% 
   glimpse() %>% 
@@ -37,7 +37,7 @@ rchs_sp %>%
   geom_sf()
 
 # locs joined to a priori info
-locs_ap_sp <- st_read("../data/locs_ap_join.shp")
+locs_ap_sp <- st_read("../data/gis/locs_ap_join.shp")
 
 glimpse(locs_ap_sp)
 

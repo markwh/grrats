@@ -1,0 +1,83 @@
+
+title: "notebook20181022"
+author: "Mark Hagemann"
+date: "October 22, 2018"
+output: html_document
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Writing a brief update for Mike and Steve summarizing the work I've done so far. 
+
+
+```{r}
+rchs_sp <- st_read("../data/gis/apriori_joindf_reaches.shp")
+
+rchs_sp %>% 
+  glimpse() %>% 
+  ggplot(aes(color = log10(flow_acc))) +
+  geom_sf()
+
+# locs joined to a priori info
+locs_ap_sp <- st_read("../data/gis/locs_ap_join.shp")
+
+glimpse(locs_ap_sp)
+
+locs_ap <- as.data.frame(locs_ap_sp)
+locs_ap$geometry <- NULL
+```
+
+
+## Preprocessing
+
+Height and width data were split into river segments with no major inflows based on drainage area. The following segments were defined.
+
+```{r}
+
+
+segbnds <- c(105268.6, 429268.6, 
+             430268.6, 887268.6, 
+             926268.6, 1506268.6, 
+             1628268.6, 1855268.6, 
+             1897268.6, 2132268.6)
+bndsdf <- segbnds %>% 
+  matrix(ncol = 2, byrow = TRUE) %>% 
+  as.data.frame() %>% 
+  setNames(c("ds", "us")) %>% 
+  mutate(interval = as.factor(1:n() * 2))
+
+locs_ap %>%  
+  # mutate(interval = findInterval(x_m, c(0, segbnds, 1e10)),
+  #        interval = as.factor(ifelse(interval %% 2 == 0, interval, NA))) %>% 
+  # glimpse() %>%
+  ggplot() +
+  geom_rect(aes(xmin = ds, xmax = us, ymin = 0, 
+                ymax = Inf, fill = interval), data = bndsdf) +
+  geom_point(aes(x = x_m, y = flow_acc)) +
+  scale_fill_discrete(name = "River Segment")
+```
+
+These segments were further split into sets of reaches using a maximum set length of 100 km. These were temporally subset to a 15-day time interval, resulting in cases with 561 unique times each. 
+
+
+### Zero-slope conditions
+
+Despite imposing a non-increasing (downstream) height constraint, many of the reaches still had zero slope, meaning that Manning's equation will not hold. The following plot shows where in time and space these zero-slope conditions occur. 
+
+```{r}
+fromcache("reachcase_mean")
+reachcase_mean %>% 
+  swot_tidy() %>% 
+  ggplot(aes(x = time, y = loc, fill = is.na(S))) + 
+  geom_raster() + 
+  scale_fill_discrete(name = "Zero slope")
+```
+
+BAM does have the ability to invert using zero slopes, but this requires an additional level of model hierarchy that drastically increases the time required to do the imputation. Additionally, due to the long run-time, this feature has not been extensively tested. 
+
+
+## Results
+
+
