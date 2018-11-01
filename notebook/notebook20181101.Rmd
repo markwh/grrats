@@ -1,0 +1,61 @@
+---
+title: "notebook20181101"
+author: "Mark Hagemann"
+date: "November 1, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+It's time to package up these Q estimates and send them along!
+
+This means associating actual times and river locations with the "reach sets" I'm inverting. 
+
+I don't have the actual estimates on my laptop here, but I can work from an upstream object. 
+
+- Use bds_reach and bds_reach_mean (probably just the latter). 
+    - No time info, just space indices and DAWG matrices.
+- reachcases2_mean has the info. 
+    - This maps directly to bds_reach_mean (see munge/07-bamprep.R)
+
+```{r}
+fromcache("bds_reach_mean")
+fromcache("reachcases2_mean")
+
+#' A function to collapse a matrix along a dimension. 
+clps <- function(x, dim, clpsfun = unique, ...) {
+  unq <- apply(x, dim, clpsfun, ...)
+  out <- unlist(lapply(unq, na.omit))
+  if (length(out) > dim(x)[dim]) {
+    browser()
+    stop("more than one nonmissing value present along dim")
+  }
+  out
+}
+
+bds_times <- map(reachcases2_mean, ~as.Date(clps(.$date, 2)))
+bds_locs <- map(reachcases2_mean, ~clps(.$x, 1, clpsfun = median, na.rm = TRUE))
+
+
+```
+
+Now make a data.frame to join by location (index) and time index.
+
+tidyr has stuff for this, right?
+
+```{r}
+
+tojoin0 <- map2(bds_times, bds_locs, 
+                function(x, y) data.frame(time = rep(x, length(y)),
+                                timeind = rep(1:length(x), length(y)),
+                                loc = rep(y, each = length(x)),
+                                locind = rep(1:length(y), each = length(x))))
+
+tojoindf <- bind_rows(tojoin0, .id = "setid")
+```
+
+That should get me ready to join to the qests_reach object from invert.R.
+
